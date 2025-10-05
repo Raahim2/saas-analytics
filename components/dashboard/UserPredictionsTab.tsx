@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { SaaSUser } from '@/app/page';
-import { ArrowUpDown, Search } from 'lucide-react';
+import { ArrowUpDown, Search, BrainCircuit } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface UserPredictionsTabProps {
@@ -14,6 +14,20 @@ type SortDirection = 'asc' | 'desc';
 export function UserPredictionsTab({ users }: UserPredictionsTabProps) {
   const [sortField, setSortField] = useState<SortField>('propensityScore');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
+  // ✨ This new function creates a smart placeholder if the AI reason is missing.
+  const getReasonPlaceholder = (user: SaaSUser): string => {
+    if (user.limitHits30d > 3) {
+      return "High number of feature limit hits.";
+    }
+    if (user.teamInvites > 10) {
+      return "Significant team invite activity.";
+    }
+    if (user.activeDays7d >= 6) {
+      return "Very high recent user activity.";
+    }
+    return "General positive usage signals.";
+  };
 
   if (users.length === 0) {
     return (
@@ -54,14 +68,10 @@ export function UserPredictionsTab({ users }: UserPredictionsTabProps) {
 
   const getPlanColor = (plan: string) => {
     switch (plan) {
-      case 'Free':
-        return 'bg-slate-100 text-slate-800';
-      case 'Starter':
-        return 'bg-green-100 text-green-800';
-      case 'Pro':
-        return 'bg-amber-100 text-amber-800';
-      default:
-        return 'bg-slate-100 text-slate-800';
+      case 'Free': return 'bg-slate-100 text-slate-800';
+      case 'Starter': return 'bg-green-100 text-green-800';
+      case 'Pro': return 'bg-amber-100 text-amber-800';
+      default: return 'bg-slate-100 text-slate-800';
     }
   };
 
@@ -115,6 +125,12 @@ export function UserPredictionsTab({ users }: UserPredictionsTabProps) {
                   </div>
                 </th>
                 <th className="text-left px-6 py-4 text-sm font-semibold text-slate-900">
+                  <div className="flex items-center space-x-2">
+                    <BrainCircuit className="h-4 w-4" />
+                    <span>Reason</span>
+                  </div>
+                </th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-900">
                   Recommendation
                 </th>
               </tr>
@@ -131,6 +147,10 @@ export function UserPredictionsTab({ users }: UserPredictionsTabProps) {
                   </td>
                   <td className={`px-6 py-4 text-sm ${getScoreColor(user.propensityScore)}`}>
                     {user.propensityScore.toFixed(2)}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-slate-600 max-w-xs italic">
+                    {/* ✨ This line now shows the real reason OR the smart placeholder */}
+                    {user.reason || getReasonPlaceholder(user)}
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-600 max-w-md">
                     {user.recommendationMessage}

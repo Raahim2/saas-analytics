@@ -1,13 +1,112 @@
 import { Card } from '@/components/ui/card';
 import { SaaSUser } from '@/app/page';
 import { Badge } from '@/components/ui/badge';
-import { Mail, Target } from 'lucide-react';
+import { Mail, Target, Zap, Users, Edit, ChevronsUpDown, Rocket } from 'lucide-react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
 interface UpsellMessagesTabProps {
   users: SaaSUser[];
 }
 
 export function UpsellMessagesTab({ users }: UpsellMessagesTabProps) {
+  const [editedMessages, setEditedMessages] = useState<Record<string, string>>({});
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentCategory, setCurrentCategory] = useState('');
+  const [editText, setEditText] = useState('');
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+
+  const sendToAgent = async (user: SaaSUser, message: string) => {
+    const API_ENDPOINT_URL = '/api/trigger-workflow';
+    try {
+      await fetch(API_ENDPOINT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: user.name, email: user.email, message, plan: user.currentPlan }),
+      });
+    } catch (error) { 
+      console.error(`Failed to trigger for ${user.name}:`, error); 
+      throw error; 
+    }
+  };
+
+  const runBulkCampaign = async (category: string, usersToMessage: SaaSUser[]) => {
+    if (usersToMessage.length === 0) return;
+    const demoUsers = usersToMessage.slice(0, 2);
+    const toastId = toast.loading(`Starting campaign for "${getCategoryName(category)}"...`);
+    const messageToSend = editedMessages[category] || category;
+
+    try {
+      for (const user of demoUsers) {
+        await sendToAgent(user, messageToSend);
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      toast.success(`Campaign successfully sent!`, { id: toastId });
+    } catch (error) { 
+      toast.error('Campaign failed.', { id: toastId }); 
+    }
+  };
+  
+  const runAllCampaigns = async () => {
+    const allCategories = Object.entries(usersByCategory);
+    if (allCategories.length === 0) return;
+
+    const toastId = toast.loading(`Launching all ${allCategories.length} campaigns...`);
+    
+    try {
+      for (const [category, categoryUsers] of allCategories) {
+        const demoUser = categoryUsers[0]; 
+        if(demoUser){
+            const messageToSend = editedMessages[category] || category;
+            await sendToAgent(demoUser, messageToSend);
+            await new Promise(resolve => setTimeout(resolve, 700));
+        }
+      }
+      toast.success('All campaigns have been successfully triggered!', { id: toastId, duration: 5000 });
+    } catch (error) {
+      toast.error('One or more campaigns failed.', { id: toastId });
+    }
+  };
+
+
+  const getCategoryName = (message: string) => {
+    if (message.toLowerCase().includes('team')) return 'Team Expansion Campaign';
+    if (message.toLowerCase().includes('limit')) return 'Usage Limit Campaign';
+    return 'Pro Feature Adoption Campaign';
+  };
+
+  const handleOpenEditModal = (category: string) => {
+    setCurrentCategory(category);
+    setEditText(editedMessages[category] || category);
+    setIsModalOpen(true);
+  };
+
+  const handleSaveChanges = () => {
+    setEditedMessages(prev => ({ ...prev, [currentCategory]: editText }));
+    setIsModalOpen(false);
+    toast.success("Campaign message updated!");
+  };
+
+  const toggleExpanded = (category: string) => {
+    setExpandedCategories(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(category)) newSet.delete(category);
+      else newSet.add(category);
+      return newSet;
+    });
+  };
+
   if (users.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -20,140 +119,106 @@ export function UpsellMessagesTab({ users }: UpsellMessagesTabProps) {
     );
   }
 
-  const topUsers = [...users]
-    .sort((a, b) => b.propensityScore - a.propensityScore)
-    .slice(0, 10);
-
-  const getScoreBadge = (score: number) => {
-    if (score >= 0.8) {
-      return <Badge className="bg-green-100 text-green-800">High Priority</Badge>;
-    } else if (score >= 0.6) {
-      return <Badge className="bg-blue-100 text-blue-800">Medium Priority</Badge>;
-    }
-    return <Badge className="bg-slate-100 text-slate-800">Low Priority</Badge>;
-  };
-
-  const exampleUser = topUsers[0];
+  const usersByCategory = users.reduce((acc, user) => {
+    const category = user.recommendationMessage;
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(user);
+    return acc;
+  }, {} as Record<string, SaaSUser[]>);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900 mb-2">Upsell Messages</h2>
-        <p className="text-slate-600">Top 10 users with personalized upgrade recommendations</p>
-      </div>
+    <>
+      <div className="space-y-8">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">Upsell Campaigns</h2>
+            <p className="text-slate-600">Launch targeted campaigns for different user segments identified by the AI.</p>
+          </div>
+          <Button onClick={runAllCampaigns} size="lg" className="bg-red-600 hover:bg-red-700">
+             <Rocket className="mr-2 h-4 w-4" />
+             Run All Campaigns
+          </Button>
+        </div>
 
-      <div className="space-y-4">
-        {topUsers.map((user, index) => (
-          <Card key={user.id} className="p-6 hover:shadow-lg transition-shadow">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-start space-x-4">
-                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold">
-                  {user.name.split(' ').map(n => n[0]).join('')}
-                </div>
+        {Object.entries(usersByCategory).map(([category, categoryUsers]) => {
+          const isExpanded = expandedCategories.has(category);
+          const usersToShow = isExpanded ? categoryUsers : categoryUsers.slice(0, 5);
+
+          return (
+            <Card key={category} className="p-6">
+              <div className="flex justify-between items-start mb-4">
                 <div>
-                  <div className="flex items-center space-x-3">
-                    <h3 className="font-semibold text-slate-900">{user.name}</h3>
-                    {getScoreBadge(user.propensityScore)}
-                  </div>
-                  <p className="text-sm text-slate-600 mt-1">
-                    Current Plan: {user.currentPlan} • Score: {user.propensityScore.toFixed(2)}
-                  </p>
+                  <p className="text-sm text-blue-600 uppercase font-semibold">{getCategoryName(category)}</p>
+                  <h3 className="text-lg font-semibold text-slate-800 mt-1">
+                    {editedMessages[category] || category}
+                  </h3>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button variant="outline" size="sm" onClick={() => handleOpenEditModal(category)}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit Message
+                  </Button>
+                  <Button onClick={() => runBulkCampaign(category, categoryUsers)} className="bg-blue-600 hover:bg-blue-700">
+                    <Zap className="mr-2 h-4 w-4" />
+                    Run Campaign ({categoryUsers.length} Users)
+                  </Button>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold text-slate-900">#{index + 1}</div>
+              <p className="text-sm text-slate-500 flex items-center">
+                <Users className="h-4 w-4 mr-2" />
+                {isExpanded ? `Showing all ${categoryUsers.length} users` : `Showing first 5 of ${categoryUsers.length} users`}
+              </p>
+              <div className="mt-4 space-y-2">
+                {usersToShow.map(user => (
+                  <div key={user.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-md">
+                    <div className="flex items-center space-x-3">
+                      <div className="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold">
+                        {user.name.split(' ').map(n => n[0]).join('')}
+                      </div>
+                      <span className="font-medium text-slate-700">{user.name}</span>
+                    </div>
+                    <Badge variant="secondary">Score: {user.propensityScore.toFixed(2)}</Badge>
+                  </div>
+                ))}
               </div>
-            </div>
-
-            <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-              <div className="flex items-start space-x-2">
-                <Target className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                <p className="text-slate-700">{user.recommendationMessage}</p>
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-4 gap-4 text-sm">
-              <div>
-                <p className="text-slate-600">Active Days</p>
-                <p className="font-semibold text-slate-900">{user.activeDays7d}/7</p>
-              </div>
-              <div>
-                <p className="text-slate-600">Feature Usage</p>
-                <p className="font-semibold text-slate-900">{user.featureUsage7d}%</p>
-              </div>
-              <div>
-                <p className="text-slate-600">Limit Hits</p>
-                <p className="font-semibold text-slate-900">{user.limitHits30d}</p>
-              </div>
-              <div>
-                <p className="text-slate-600">Team Invites</p>
-                <p className="font-semibold text-slate-900">{user.teamInvites}</p>
-              </div>
-            </div>
-          </Card>
-        ))}
+              {categoryUsers.length > 5 && (
+                <div className="mt-4 text-center">
+                  <Button variant="ghost" size="sm" onClick={() => toggleExpanded(category)}>
+                    <ChevronsUpDown className="mr-2 h-4 w-4" />
+                    {isExpanded ? 'Show Less' : 'Show All'}
+                  </Button>
+                </div>
+              )}
+            </Card>
+          );
+        })}
       </div>
 
-      {exampleUser && (
-        <Card className="p-6 bg-gradient-to-br from-blue-50 to-slate-50 border-blue-200">
-          <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
-            <Mail className="h-5 w-5 mr-2 text-blue-600" />
-            Email Preview
-          </h3>
-
-          <div className="bg-white rounded-lg p-6 border border-slate-200 shadow-sm">
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs text-slate-600 uppercase font-semibold mb-1">To</p>
-                <p className="text-slate-900">{exampleUser.name}</p>
-              </div>
-
-              <div>
-                <p className="text-xs text-slate-600 uppercase font-semibold mb-1">Subject</p>
-                <p className="text-slate-900 font-medium">
-                  Unlock Pro features for your growing team!
-                </p>
-              </div>
-
-              <div className="border-t pt-4">
-                <p className="text-xs text-slate-600 uppercase font-semibold mb-3">Body</p>
-                <div className="space-y-3 text-slate-700">
-                  <p>Hi {exampleUser.name.split(' ')[0]},</p>
-
-                  <p>
-                    We noticed you've been actively using our platform lately — {exampleUser.activeDays7d} active
-                    days in the past week! That's great to see.
-                  </p>
-
-                  <p>
-                    {exampleUser.recommendationMessage}
-                  </p>
-
-                  <p>
-                    Upgrade to Pro today and get:
-                  </p>
-
-                  <ul className="list-disc list-inside space-y-1 ml-4">
-                    <li>Unlimited exports and API calls</li>
-                    <li>Advanced automation workflows</li>
-                    <li>Priority support</li>
-                    <li>Custom integrations</li>
-                  </ul>
-
-                  <p>
-                    Click here to upgrade and unlock the full potential of our platform.
-                  </p>
-
-                  <p className="pt-2">
-                    Best regards,<br />
-                    The Smart SaaS Team
-                  </p>
-                </div>
-              </div>
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-[625px]">
+          <DialogHeader>
+            <DialogTitle>Edit Campaign Message</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="message">Message Template</Label>
+              <Textarea
+                id="message"
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                className="min-h-[120px]"
+              />
             </div>
           </div>
-        </Card>
-      )}
-    </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="secondary">Cancel</Button>
+            </DialogClose>
+            <Button type="button" onClick={handleSaveChanges}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
+

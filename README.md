@@ -10,9 +10,9 @@ It empowers product managers by transforming **raw user behavior data** into **a
 Instead of relying on generic marketing, Synapse uses AI to determine:
 - **Who** is ready to upgrade  
 - **Why** they’re ready  
-- **When** to execute the upsell  
-<img width="1904" height="868" alt="image" src="https://github.com/user-attachments/assets/4b934231-a187-43a2-bfbf-f9e193ba7bea" /># 🧠 Synapse: The AI Command Center for SaaS Upsells
-
+- **When** to execute the upsell
+- 
+![Dashboard Preview](assets/Dashboard.png)
 ![User Preview](assets/User.png)
 ![Insights Preview](assets/Insights.png)
 ![Upsell Preview](assets/Upsell.png)

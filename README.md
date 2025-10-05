@@ -13,9 +13,9 @@ Instead of relying on generic marketing, Synapse uses AI to determine:
 - **When** to execute the upsell  
 <img width="1904" height="868" alt="image" src="https://github.com/user-attachments/assets/4b934231-a187-43a2-bfbf-f9e193ba7bea" /># 🧠 Synapse: The AI Command Center for SaaS Upsells
 
-![Dashboard Preview](assets/User.png)
-![Dashboard Preview](assets/Insight.png)
-![Dashboard Preview](assets/Upsell.png)
+![User Preview](assets/User.png)
+![Insights Preview](assets/Insights.png)
+![Upsell Preview](assets/Upsell.png)
 
 
 

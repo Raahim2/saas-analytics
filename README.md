@@ -117,18 +117,6 @@ The platform operates in a clear, four-phase flow — from **raw data** to **exe
    Open [http://localhost:3000](http://localhost:3000)
 
 ---
-
-## 👥 Team
-
-### **Byte Forge**
-- **Arshad Shaikh**
-
----
-
-## 🧩 License
-
-This project is licensed under the **MIT License**.
-
 ---
 
 > _Built with strategy, intelligence, and purpose — **Synapse:** Where SaaS Growth Meets Smart AI._
